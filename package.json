@@ -1,0 +1,21 @@
+{
+  "name": "logm-taskmgt",
+  "version": "1.0.0",
+  "description": "A simple CAP project.",
+  "repository": "https://github.com/weikaopu/logm-taskmgt.git",
+  "license": "Apache License 2.0",
+  "dependencies": {
+    "@sap/cds": "^7",
+    "express": "^4"
+  },
+  "devDependencies": {
+    "@cap-js/sqlite": "^1",
+    "@cap-js/cds-typer": "^0"
+  },
+  "scripts": {
+    "start": "cds-serve"
+  },
+  "imports": {
+    "#cds-models/*": "./@cds-models/*/index.js"
+  }
+}
