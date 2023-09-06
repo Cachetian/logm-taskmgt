@@ -3,7 +3,7 @@
     "target": "es6",
     "module": "commonjs",
     "outDir": "./gen/srv/srv",
-    "rootDir": "./srv",
+    "rootDirs": ["./srv", "./@cds-models"],
     "baseUrl": "./",
     "moduleResolution": "node",
     "skipLibCheck": true,

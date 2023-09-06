@@ -1,6 +1,8 @@
 import { Service } from "@sap/cds/apis/services";
-import { Tasks } from '#cds-models/sap/logm/db';
+import { Tasks, Timers } from "#cds-models/sap/logm/db";
 
 export = (srv: Service) => {
-  const { Tasks } = srv.entities;
+  srv.on("READ", "Timers", (req) => {
+    return [{ instanceId: "1" }];
+  });
 };
