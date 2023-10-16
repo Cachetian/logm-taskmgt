@@ -1,8 +1,6 @@
 {
-  "name": "logm-taskmgt",
+  "name": "@logm/taskmgt",
   "version": "1.0.0",
-  "description": "A simple CAP project.",
-  "repository": "https://github.com/weikaopu/logm-taskmgt.git",
   "license": "Apache License 2.0",
   "dependencies": {
     "@sap/cds": "^7",
