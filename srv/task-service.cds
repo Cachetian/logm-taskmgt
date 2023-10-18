@@ -10,4 +10,6 @@ service TaskService {
         action stop();
         action getStatus() returns String;
     }
+
+    function getCdsModels() returns String;
 }

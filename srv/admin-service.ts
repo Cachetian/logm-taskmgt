@@ -2,8 +2,10 @@ import { Service } from "@sap/cds/apis/services";
 import cds from "@sap/cds";
 
 export = (srv: Service) => {
+  const LOG = cds.log("sap.logm.srv.AdminService");
+
   srv.before("*", (req) =>
-    console.log("before generic handler -> req.event: ", req.event)
+    LOG.info("before generic handler -> req.event: ", req.event)
   );
 
   srv.on("getProcessEnv", () => {
@@ -24,7 +26,7 @@ export = (srv: Service) => {
   });
 
   srv.on("getCdsEnv", (req) => {
-    console.log("req.data.path:", req.data.path);
+    LOG.info("req.data.path:", req.data.path);
     if (req.data.path === "*") {
       return cds.env;
     }
