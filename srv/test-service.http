@@ -1,0 +1,36 @@
+### 
+POST http://localhost:4004/odata/v4/task/pushToTaskQueue HTTP/1.1
+content-type: application/json
+
+{
+    "parseCallback": "sample",
+    "fileName": "defaultTrace.trc",
+    "logType": "",
+    "logFileChunks" : [],
+    "fileId" : ""
+}
+
+### 
+POST http://localhost:4004/odata/v4/task/readStatus HTTP/1.1
+content-type: application/json
+
+{
+    "fileId" : ""
+}
+
+### 
+POST http://localhost:4004/odata/v4/task/retrieveLogModelData HTTP/1.1
+content-type: application/json
+
+{
+    "fileId" : "",
+    "ifDeleteAfterRetrieve" : false
+}
+
+### 
+POST http://localhost:4004/odata/v4/task/deleteConsumedLogModelData HTTP/1.1
+content-type: application/json
+
+{
+    "fileId" : ""
+}
