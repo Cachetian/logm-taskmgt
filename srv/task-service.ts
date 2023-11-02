@@ -1,10 +1,7 @@
 import { Service } from "@sap/cds/apis/services";
-// import { Tasks, Timers } from "#cds-models/sap/logm/db"; // not work
-// import type { Tasks, Timers } from "#cds-models/sap/logm/db"; // not work
+import cds from "@sap/cds";
 export = (srv: Service) => {
   const LOG = cds.log("sap.logm.srv.TaskService");
-  // const { Tasks, Timers } = require("#cds-models/sap/logm/db"); // not work
-  // const { Task, Timer } = require("#cds-models/sap/logm/db"); // not work
   const { Tasks, Timers } = srv.entities;
 
   // init global members
