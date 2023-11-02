@@ -1,4 +1,10 @@
 ### 
+GET  http://localhost:4004/odata/v4/task/Tasks HTTP/1.1
+
+### 
+GET  http://localhost:4004/odata/v4/task/getStatus() HTTP/1.1
+
+### 
 POST http://localhost:4004/odata/v4/task/pushToTaskQueue HTTP/1.1
 content-type: application/json
 

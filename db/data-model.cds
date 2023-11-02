@@ -8,3 +8,10 @@ entity Tasks {
 entity Timers {
   key instanceId : String(30)
 }
+
+type State : String enum {
+  Dispatching = 'Dispatching';
+  Idle        = 'Idle';
+  Busy        = 'Busy';
+  Loading     = 'Loading';
+}
