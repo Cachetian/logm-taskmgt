@@ -34,4 +34,8 @@ export = (srv: Service) => {
     let path: CdsEnvKey = req.data.path as CdsEnvKey;
     return cds.env[path];
   });
+
+  srv.on("getCdsModels", () => {
+    return {};
+  });
 };

@@ -11,5 +11,20 @@ service TaskService {
         action getStatus() returns String;
     }
 
-    function getCdsModels() returns String;
+    /**
+     * Push as file into task queue for parsing.
+     */
+    action pushToTaskQueue(parseCallback : String, fileName : String, logType : String, logFileChunks : array of String, fileId : String) returns String;
+    /**
+     * read file parsing status by ID
+     */
+    action readStatus(fileId : String)                                                                                                    returns String;
+    /**
+     * retrieve log model data from task map.
+     */
+    action retrieveLogModelData(fileId : String, ifDeleteAfterRetrieve : Boolean)                                                         returns String;
+    /**
+     * delete consumed log model data from task map.
+     */
+    action deleteConsumedLogModelData(fileId : String);
 }
