@@ -19,7 +19,7 @@ service TaskService {
      */
     function getStatus()                                                                                                                    returns String;
     /**
-     * Push as file into task queue for parsing.
+     * Push as file into task queue for parsing. (single)
      */
     action   pushToTaskQueue(parseCallback : String, fileName : String, logType : String, logFileChunks : array of String, fileId : String) returns String;
     /**

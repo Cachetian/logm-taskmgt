@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "license": "Apache License 2.0",
   "dependencies": {
+    "@sap-cloud-sdk/http-client": "^3.7.0",
     "@sap/cds": "^7",
     "@types/node": "^16",
     "express": "^4"

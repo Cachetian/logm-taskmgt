@@ -2,6 +2,19 @@
 GET  http://localhost:4004/odata/v4/task/Tasks HTTP/1.1
 
 ### 
+POST  http://localhost:4004/odata/v4/task/Tasks HTTP/1.1
+content-type: application/json
+
+{
+    "fileName": "defaultTrace.trc",
+    "logType": "defaultTrace",
+    "fileId" : ""
+}
+
+### 
+GET  http://localhost:4004/odata/v4/task/Timers HTTP/1.1
+
+### 
 GET  http://localhost:4004/odata/v4/task/getStatus() HTTP/1.1
 
 ### 
@@ -11,8 +24,11 @@ content-type: application/json
 {
     "parseCallback": "sample",
     "fileName": "defaultTrace.trc",
-    "logType": "",
-    "logFileChunks" : [],
+    "logType": "defaultTrace",
+    "logFileChunks" : [
+        "abc",
+        "def"
+    ],
     "fileId" : ""
 }
 

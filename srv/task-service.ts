@@ -6,9 +6,16 @@ import { setTimeout } from "timers";
  * Task service
  */
 export = async (srv: Service) => {
+  //
+  // Declare design time types, static members
+  //
   const LOG = cds.log("sap.logm.srv.TaskService");
   const { Tasks, Timers } = srv.entities;
   const globalMembers: Map<String, Object> = new Map();
+
+  //
+  // Declare design time functions
+  //
 
   /**
    * pre initialize memeber logic of task service
@@ -42,15 +49,9 @@ export = async (srv: Service) => {
     // restore tasks from db?
     let tasks = await cds.read(Tasks);
     if (tasks.length === 0) {
-      tasks = [];
-      let capacity: number = Number(settings.get("taskQueueCapacity"));
-      for (let i = 0; i < capacity; i++) {
-        const task = {
-          ID: i
-        };
-        tasks.push(task);
-      }
-      await INSERT.into(Tasks).entries(tasks);
+      LOG.log("No task restored");
+    } else {
+      LOG.log("Found tasks records: ", tasks.length);
     }
     // if no tasks data from db, init task data into db.
   }
@@ -79,6 +80,18 @@ export = async (srv: Service) => {
       Object
     >;
     return settings.get(param);
+  }
+
+  async function genEmptyTasks() {
+    let tasks = [];
+    let capacity: number = Number(getGlobalSetting("taskQueueCapacity"));
+    for (let i = 0; i < capacity; i++) {
+      const task = {
+        ID: i
+      };
+      tasks.push(task);
+    }
+    await INSERT.into(Tasks).entries(tasks);
   }
 
   //
@@ -148,15 +161,26 @@ export = async (srv: Service) => {
     LOG.log("onStatusUpdateComplete");
   }
 
-  function onLoadComplete(): void {
+  async function onLoadComplete(): Promise<void> {
     LOG.log("onLoadComplete");
+    let devService = await cds.connect.to("sap.logm.srv.DevService");
+    devService.emit("parseChunkSim", {});
+    // set to Busy
   }
+
+  //
+  // Declare runtime time functions
+  //
 
   // init global members
   initMemebers(globalMembers);
 
+  srv.before("CREATE", Tasks, (req) => {
+    LOG.info("Before CREATE Tasks");
+  });
+
   srv.on("READ", Timers, (req) => {
-    LOG.info("Get timers");
+    LOG.info("Get timers - ", req.event);
     return globalMembers.get("timers");
   });
 
@@ -181,8 +205,26 @@ export = async (srv: Service) => {
     return getRuntimeParam("serviceState");
   });
 
-  srv.on("pushToTaskQueue", (req) => {
-    LOG.info("pushToTaskQueue");
+  srv.on("pushToTaskQueue", async (req) => {
+    LOG.info("pushToTaskQueue - ", req.data);
+    let tasks: Array<Object> = [];
+    let { logFileChunks, fileName, logType, fileId } = req.data;
+    if (fileId === null || fileId === "") {
+      fileId = new Date().getTime();
+    }
+
+    // get tasks data
+    for (let i = 0; i < logFileChunks.length; i++) {
+      const chunk = logFileChunks[i];
+      let task = {
+        fileName: fileName,
+        logType: logType,
+        fileId: fileId
+      };
+      tasks.push(task);
+    }
+    // persist into db
+    await srv.send("POST", "/Tasks", tasks);
   });
 
   srv.on("readStatus", (req) => {
