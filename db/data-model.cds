@@ -1,16 +1,27 @@
 namespace sap.logm.db;
 
-entity Tasks {
-  key ID            : Integer;
-      title         : String;
-      parsed        : Boolean;
-      fileId        : String;
-      leadingChunk  : Boolean;
-      fileName      : String;
-      logType       : String;
-      nextChunk     : Association to one Tasks;
-      fileChunkData : Association to one TaskLogFileChunkData;
-      logModelData  : Association to one TaskLogModelata;
+using {cuid} from '@sap/cds/common';
+
+entity Tasks : cuid {
+  taskNo              : Integer;
+  title               : String;
+  status              : String enum {
+    Queuing = 'Queuing';
+    Pulling = 'Pulling';
+    Parsing = 'Parsing';
+    Putting = 'Putting';
+    Ready   = 'Ready';
+  };
+  parsed              : Boolean;
+  fileId              : String;
+  leadingChunk        : Boolean;
+  fileName            : String;
+  logType             : String;
+  nextChunk           : Association to one Tasks;
+  fileChunkData       : Association to one TaskLogFileChunkData;
+  fileChunkDataLength : Integer;
+  logModelData        : Association to one TaskLogModelData;
+  logModelDataLength  : Integer;
 }
 
 entity TaskLogFileChunkData {
@@ -19,7 +30,7 @@ entity TaskLogFileChunkData {
       logFileChunkData : LargeBinary;
 }
 
-entity TaskLogModelata {
+entity TaskLogModelData {
   key task           : Association to one Tasks;
       originalLength : Integer64;
       logModelData   : LargeString;
@@ -27,12 +38,14 @@ entity TaskLogModelata {
 
 
 entity Timers {
-  key instanceId : String(30)
+  key instanceId : String(30);
+      status     : State;
 }
 
 type State : String enum {
-  Dispatching = 'Dispatching';
-  Idle        = 'Idle';
-  Busy        = 'Busy';
-  Loading     = 'Loading';
+  Initializing = 'Initializing';
+  Dispatching  = 'Dispatching';
+  Idle         = 'Idle';
+  Busy         = 'Busy';
+  Loading      = 'Loading';
 }

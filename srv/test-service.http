@@ -2,6 +2,9 @@
 GET  http://localhost:4004/odata/v4/task/Tasks HTTP/1.1
 
 ### 
+GET  http://localhost:4004/odata/v4/task/Tasks(36dded45-cfc8-46c1-8221-f4dd2258b656) HTTP/1.1
+
+### 
 POST  http://localhost:4004/odata/v4/task/Tasks HTTP/1.1
 content-type: application/json
 
@@ -10,6 +13,16 @@ content-type: application/json
     "logType": "defaultTrace",
     "fileId" : ""
 }
+
+
+### 
+GET  http://localhost:4004/odata/v4/admin/getCdsEnvKeys() HTTP/1.1
+
+### 
+GET  http://localhost:4004/odata/v4/admin/getProcessEnv() HTTP/1.1
+
+### 
+GET  http://localhost:4004/odata/v4/admin/getCfAppInstanceIndex() HTTP/1.1
 
 ### 
 GET  http://localhost:4004/odata/v4/task/Timers HTTP/1.1
@@ -55,4 +68,14 @@ content-type: application/json
 
 {
     "fileId" : ""
+}
+
+### 
+POST http://localhost:4004/odata/v4/dev/parseChunkSim HTTP/1.1
+content-type: application/json
+
+{
+    "chunk": "",
+    "fileName": "defaultTrace.trc",
+    "logType": "defaultTrace"
 }
