@@ -15,6 +15,7 @@ entity Tasks : cuid {
   parsed              : Boolean;
   fileId              : String;
   leadingChunk        : Boolean;
+  lastChunk           : Boolean;
   fileName            : String;
   logType             : String;
   nextChunk           : Association to one Tasks;

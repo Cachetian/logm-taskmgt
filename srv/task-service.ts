@@ -55,17 +55,17 @@ export = async (srv: Service) => {
     let timer = await cds.read(Timers).where({
       instanceId: getCfAppInstanceIndex()
     });
-    if (!timer) {
+    if (timer.length === 0) {
       await createTimer();
     }
-    timeoutId = setTimeout(
-      onTechnicalTimeout,
-      Number(settings.get("heartBeatIntervalMillionSeconds"))
-    );
+    // timeoutId = setTimeout(
+    //   onTechnicalTimeout,
+    //   Number(settings.get("heartBeatIntervalMillionSeconds"))
+    // );
     // restore business state of the service
 
     // restore tasks from db?
-    let tasks = await cds.read(Tasks);
+    let tasks = await cds.read(Tasks).where`parsed != TRUE`;
     if (tasks.length === 0) {
       LOG.info("No task restored");
     } else {
@@ -132,7 +132,7 @@ export = async (srv: Service) => {
   }
 
   async function dispatching(): Promise<void> {
-    LOG.info("dispatching");
+    LOG.info("Dispatching");
     await setTimeout(() => {}, 200);
     // check task queue status
     let taskQueue = await SELECT.one
@@ -153,13 +153,8 @@ export = async (srv: Service) => {
   }
 
   async function loading(): Promise<void> {
-    LOG.info("loading");
-    let task: Task = getRuntimeParam("peekTask");
-    let taskChunkData = await SELECT.one
-      .from("sap.logm.db.TaskLogFileChunkData")
-      .columns("logFileChunkData").where`task_ID = ${task.ID}`;
-    setRuntimeParam("taskLogFileChunkData", taskChunkData.logFileChunkData);
-    LOG.info("load chunk data len - ", taskChunkData.logFileChunkData.length);
+    LOG.info("Loading");
+    await loadChunkData();
     onLoadComplete();
   }
 
@@ -168,6 +163,7 @@ export = async (srv: Service) => {
     await cds.update(Timers).where({
       instanceId: getCfAppInstanceIndex()
     }).set`status = 'Dispatching'`;
+    LOG.info("Status set to Dispatching");
     await dispatching();
   }
 
@@ -176,6 +172,12 @@ export = async (srv: Service) => {
     await cds.update(Timers).where({
       instanceId: getCfAppInstanceIndex()
     }).set`status = 'Idle'`;
+    LOG.info("Status set to Idle");
+    let timeoutId = setTimeout(
+      onTechnicalTimeout,
+      Number(getGlobalSetting("heartBeatIntervalMillionSeconds"))
+    );
+    setRuntimeParam("timeoutId", timeoutId);
   }
 
   function onStopAction(): void {
@@ -190,9 +192,15 @@ export = async (srv: Service) => {
       instanceId: getCfAppInstanceIndex()
     });
     if (timerForStatus[0].status === "Idle") {
+      // stop heart beat
+      let timeoutId: NodeJS.Timeout = getRuntimeParam(
+        "timeoutId"
+      ) as NodeJS.Timeout;
+      clearTimeout(timeoutId);
       await cds.update(Timers).where({
         instanceId: getCfAppInstanceIndex()
       }).set`status = 'Busy'`;
+      LOG.info("Status set to Busy");
       let task = await SELECT.one.from("sap.logm.db.Tasks")
         .where`parsed != TRUE`.orderBy`taskNo, taskNo desc`.limit(1);
       if (task) {
@@ -243,19 +251,28 @@ export = async (srv: Service) => {
     await cds.update(Timers).where({
       instanceId: getCfAppInstanceIndex()
     }).set`status = 'Busy'`;
+    LOG.info("Status set to Busy");
     parseChunk();
   }
 
-  function loadChunkData() {}
+  async function loadChunkData() {
+    let task: Task = getRuntimeParam("peekTask");
+    let taskChunkData = await SELECT.one
+      .from("sap.logm.db.TaskLogFileChunkData")
+      .columns("logFileChunkData").where`task_ID = ${task.ID}`;
+    setRuntimeParam("taskLogFileChunkData", taskChunkData.logFileChunkData);
+    LOG.info("Load chunk data len - ", taskChunkData.logFileChunkData.length);
+  }
 
   async function parseChunk() {
+    LOG.info("Parse chunk data");
     // get chunk data from db
     // call parse callback
     // save result into db
     let task: Task = getRuntimeParam("peekTask");
     let taskLogFileChunkData = getRuntimeParam("taskLogFileChunkData");
     let devService = await cds.connect.to("sap.logm.srv.DevService");
-    await devService.emit("parseChunkSim", {
+    let logModelData = await devService.emit("parseChunkSim", {
       chunk: taskLogFileChunkData,
       fileName: task.fileName,
       logType: task.logType
@@ -263,6 +280,34 @@ export = async (srv: Service) => {
     await cds.update(Tasks).where({
       ID: task.ID
     }).set`parsed = TRUE`;
+    let taskLogFleModelData = {
+      task_ID: task.ID,
+      logModelData: logModelData
+    };
+    await INSERT.into("sap.logm.db.TaskLogModelData").entries(
+      taskLogFleModelData
+    );
+
+    // Putting
+    // put result map, if last chunk, read all chunks by fileId
+    // if (task.lastChunk) {
+    //   let taskIds = await SELECT.from("sap.logm.db.Tasks").columns("ID").where({
+    //     fileId: task.fileId
+    //   }).orderBy`taskNo, taskNo desc`;
+    //   let logFileAllModelsData = [];
+    //   for (let i = 0; i < taskIds.length; i++) {
+    //     const taskId = taskIds[i];
+    //     let logFileModelData = await SELECT.one
+    //       .from("sap.logm.db.TaskLogModelData")
+    //       .columns("logFileChunkData").where`task_ID = ${taskId}`;
+    //     logFileAllModelsData.push(logFileModelData);
+    //   }
+    //   await INSERT.into("sap.logm.db.TaskLogModelData").entries(
+    //     logFileAllModelsData
+    //   );
+    // }
+
+    // save to result map
     onChunkProcessComplete();
   }
 
