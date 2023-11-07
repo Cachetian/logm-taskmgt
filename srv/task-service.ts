@@ -53,7 +53,7 @@ export = async (srv: Service) => {
     // if no timer status found in db
     // create timer in db
     let timer = await cds.read(Timers).where({
-      instanceId: getCfAppInstanceIndex()
+      instanceId: getInstanceId()
     });
     if (timer.length === 0) {
       await createTimer();
@@ -112,7 +112,7 @@ export = async (srv: Service) => {
     await INSERT.into(Tasks).entries(tasks);
   }
 
-  function getCfAppInstanceIndex() {
+  function getInstanceId() {
     let instanceIndex: string = process.env.CF_INSTANCE_INDEX;
     return instanceIndex || "0";
   }
@@ -133,7 +133,7 @@ export = async (srv: Service) => {
 
   async function dispatching(): Promise<void> {
     LOG.info("Dispatching");
-    await setTimeout(() => {}, 200);
+    setTimeout(() => {}, 200);
     // check task queue status
     let taskQueue = await SELECT.one
       .from("sap.logm.db.Tasks")
@@ -161,7 +161,7 @@ export = async (srv: Service) => {
   async function onInitComplete(): Promise<void> {
     LOG.info("onInitComplete");
     await cds.update(Timers).where({
-      instanceId: getCfAppInstanceIndex()
+      instanceId: getInstanceId()
     }).set`status = 'Dispatching'`;
     LOG.info("Status set to Dispatching");
     await dispatching();
@@ -170,7 +170,7 @@ export = async (srv: Service) => {
   async function onQueueEmpty(): Promise<void> {
     LOG.info("onQueueEmpty");
     await cds.update(Timers).where({
-      instanceId: getCfAppInstanceIndex()
+      instanceId: getInstanceId()
     }).set`status = 'Idle'`;
     LOG.info("Status set to Idle");
     let timeoutId = setTimeout(
@@ -189,7 +189,7 @@ export = async (srv: Service) => {
     // get timer by app ID, get status, check status if busy
     // if from idle to busy, set status to busy, pulling one task from queue, stop heart beat
     let timerForStatus = await cds.read(Timers).where({
-      instanceId: getCfAppInstanceIndex()
+      instanceId: getInstanceId()
     });
     if (timerForStatus[0].status === "Idle") {
       // stop heart beat
@@ -198,7 +198,7 @@ export = async (srv: Service) => {
       ) as NodeJS.Timeout;
       clearTimeout(timeoutId);
       await cds.update(Timers).where({
-        instanceId: getCfAppInstanceIndex()
+        instanceId: getInstanceId()
       }).set`status = 'Busy'`;
       LOG.info("Status set to Busy");
       let task = await SELECT.one.from("sap.logm.db.Tasks")
@@ -236,7 +236,7 @@ export = async (srv: Service) => {
     LOG.info("onChunkProcessComplete");
     // set status
     await cds.update(Timers).where({
-      instanceId: getCfAppInstanceIndex()
+      instanceId: getInstanceId()
     }).set`status = 'Dispatching'`;
     dispatching();
   }
@@ -249,7 +249,7 @@ export = async (srv: Service) => {
     LOG.info("onLoadComplete");
     // set to Busy
     await cds.update(Timers).where({
-      instanceId: getCfAppInstanceIndex()
+      instanceId: getInstanceId()
     }).set`status = 'Busy'`;
     LOG.info("Status set to Busy");
     parseChunk();
@@ -365,6 +365,13 @@ export = async (srv: Service) => {
     });
   }
 
+  async function readStatus(): Promise<String> {
+    let timerForStatus = await cds
+      .read(Timers, getInstanceId())
+      .columns("status");
+    return timerForStatus.status;
+  }
+
   //
   // Declare runtime time functions
   //
@@ -389,12 +396,10 @@ export = async (srv: Service) => {
     LOG.info("start timer");
   });
 
-  srv.on("getStatus", Timers, (req) => {
-    LOG.info("get timer Status");
-  });
-
-  srv.on("getStatus", Timers, (req) => {
-    LOG.info("get timer Status");
+  srv.on("getStatus", Timers, async (req) => {
+    LOG.info("get timer Status - ", req.query);
+    let timer = await cds.run(req.query);
+    return timer[0].status;
   });
 
   srv.on("getStatus", (req) => {
@@ -404,9 +409,23 @@ export = async (srv: Service) => {
 
   srv.on("pushToTaskQueue", async (req) => {
     // validation if task queue is full
+    // if not parsed tasks count less than capacity
+    let taskQueueForCount = await SELECT.one
+      .from("sap.logm.db.Tasks")
+      .columns("count(*)").where`parsed != TRUE`;
+    let taskQueueCapacity: number = Number(
+      getGlobalSetting("taskQueueCapacity")
+    );
+    if (taskQueueForCount.count >= taskQueueCapacity) {
+      return req.error(
+        "419",
+        "Task queue is full, capacity is: ",
+        taskQueueCapacity
+      );
+    }
 
     // pushing task data into queue
-    LOG.info("pushToTaskQueue - ", req.data);
+    LOG.info("Push To Task Queue - ", req.data);
     let tasks: Array<TaskWithChunkData> = [];
     let { logFileChunks, fileName, logType, fileId } = req.data;
 
@@ -440,7 +459,7 @@ export = async (srv: Service) => {
     onTaskArrival();
   });
 
-  srv.on("readStatus", (req) => {
+  srv.on("readStatus", async (req) => {
     LOG.info("readStatus");
   });
 

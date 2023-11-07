@@ -15,6 +15,10 @@ service TaskService {
     }
 
     /**
+     * Get file ID list
+     */
+    function getFileIds()                                                                                                                   returns array of String;
+    /**
      * get task service status
      */
     function getStatus()                                                                                                                    returns String;

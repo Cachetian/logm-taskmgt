@@ -12,14 +12,14 @@ export = (srv: Service) => {
   srv.on("parseChunkSim", async (req) => {
     LOG.info("parseChunkSim - ", req.event, req.data);
     await setTimeout(2000, "result");
-    // LOG.info("parsing 20%");
-    // await setTimeout(2000, "result");
-    // LOG.info("parsing 40%");
-    // await setTimeout(2000, "result");
-    // LOG.info("parsing 60%");
-    // await setTimeout(2000, "result");
-    // LOG.info("parsing 80%");
-    // await setTimeout(2000, "result");
+    LOG.info("parsing 20%");
+    await setTimeout(2000, "result");
+    LOG.info("parsing 40%");
+    await setTimeout(2000, "result");
+    LOG.info("parsing 60%");
+    await setTimeout(2000, "result");
+    LOG.info("parsing 80%");
+    await setTimeout(2000, "result");
     LOG.info("parse done");
     return {
       results: [
@@ -28,7 +28,7 @@ export = (srv: Service) => {
           logger: "a.b",
           level: "info",
           thread: "a",
-          message: "this is a dummy"
+          message: "this is a dummy 1"
         },
         {
           timestamp: new Date().getTime(),
