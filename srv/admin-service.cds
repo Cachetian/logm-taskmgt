@@ -2,6 +2,9 @@ namespace sap.logm.srv;
 
 using sap.logm.db as db from '../db/data-model';
 
+/**
+ * Administrative service
+ */
 service AdminService {
 
     function getProcessEnv()          returns String;

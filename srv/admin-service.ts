@@ -2,7 +2,7 @@ import { Service } from "@sap/cds/apis/services";
 import cds from "@sap/cds";
 
 export = (srv: Service) => {
-  const LOG = cds.log("sap.logm.srv.AdminService");
+  const LOG = cds.log("sap.logm.srv.admin");
 
   srv.before("*", (req) =>
     LOG.info("before generic handler -> req.event: ", req.event)

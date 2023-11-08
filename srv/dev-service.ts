@@ -3,7 +3,7 @@ import cds from "@sap/cds";
 import { setTimeout } from "timers/promises";
 
 export = (srv: Service) => {
-  const LOG = cds.log("sap.logm.srv.DevService");
+  const LOG = cds.log("sap.logm.srv.devl");
 
   srv.before("*", (req) =>
     LOG.info("before generic handler -> req.event: ", req.event)

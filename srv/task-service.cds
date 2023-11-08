@@ -6,12 +6,12 @@ service TaskService {
     entity Tasks  as projection on db.Tasks;
 
     entity Timers as projection on db.Timers actions {
-        action start();
-        action stop();
+        action   start();
+        action   stop();
         /**
          * get timer status
          */
-        action getStatus() returns String;
+        function getStatus() returns String;
     }
 
     /**

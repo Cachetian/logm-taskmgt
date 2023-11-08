@@ -1,6 +1,6 @@
 import { Service } from "@sap/cds/apis/services";
 import cds from "@sap/cds";
-import { Task } from "#cds-models/sap/logm/db";
+import { Task, Timer } from "#cds-models/sap/logm/db";
 const { uuid } = cds.utils;
 import { setTimeout } from "timers";
 
@@ -11,7 +11,7 @@ export = async (srv: Service) => {
   //
   // Declare design time types, static members
   //
-  const LOG = cds.log("sap.logm.srv.TaskService");
+  const LOG = cds.log("sap.logm.srv.task");
   const { Tasks, Timers } = srv.entities;
   const globalMembers: Map<String, Object> = new Map();
 
@@ -31,10 +31,8 @@ export = async (srv: Service) => {
   /**
    * pre initialize memeber logic of task service
    */
-  async function initMemebers(
-    globalMembers: Map<String, Object>
-  ): Promise<void> {
-    LOG.info("init memebers");
+  async function preInit(globalMembers: Map<String, Object>): Promise<void> {
+    LOG.info("Pre initialization");
     let timers = [{ instanceId: 0 }];
     let serviceState: String = "Idle";
     let settings: Map<String, Object> = new Map([
@@ -48,30 +46,6 @@ export = async (srv: Service) => {
     runtimeData.set("timers", timers);
     runtimeData.set("serviceState", serviceState);
     runtimeData.set("timeoutId", timeoutId);
-
-    // restore timers from db
-    // if no timer status found in db
-    // create timer in db
-    let timer = await cds.read(Timers).where({
-      instanceId: getInstanceId()
-    });
-    if (timer.length === 0) {
-      await createTimer();
-    }
-    // timeoutId = setTimeout(
-    //   onTechnicalTimeout,
-    //   Number(settings.get("heartBeatIntervalMillionSeconds"))
-    // );
-    // restore business state of the service
-
-    // restore tasks from db?
-    let tasks = await cds.read(Tasks).where`parsed != TRUE`;
-    if (tasks.length === 0) {
-      LOG.info("No task restored");
-    } else {
-      LOG.info("Found tasks records: ", tasks.length);
-    }
-    // if no tasks data from db, init task data into db.
   }
 
   //
@@ -117,6 +91,25 @@ export = async (srv: Service) => {
     return instanceIndex || "0";
   }
 
+  async function getCurrentTimer(): Promise<Timer> {
+    return await cds.read(Timers, getInstanceId());
+  }
+
+  async function setTimerStatus(status: String) {
+    await cds.update(Timers, getInstanceId()).set({ status: status });
+    LOG.debug("Status set to", status);
+    // Veify update result
+    // let timer = await getCurrentTimer();
+    // LOG.debug("Status is:", timer.status);
+  }
+
+  async function generateTaskNo(): Promise<number> {
+    let taskTotalCount = await SELECT.one
+      .from("sap.logm.db.Tasks")
+      .columns("count(*)");
+    return taskTotalCount.count;
+  }
+
   //
   // Lifecycle
   //
@@ -124,55 +117,71 @@ export = async (srv: Service) => {
   /**
    * post initialize logic of task service
    */
-  function postInit(): void {
-    LOG.info("post init");
+  async function postInit(): Promise<void> {
+    LOG.info("Post initialization");
     // read timers state from db
     // restore state from db
     // persist state into db
+    // restore timers from db
+    // if no timer status found in db
+    // create timer in db
+    LOG.debug("Restoring timer from DB");
+    let timer = await getCurrentTimer();
+    if (!timer) {
+      await createTimer();
+    }
+
+    // restore tasks from db?
+    LOG.debug("Restoring tasks from DB");
+    let tasks = await cds.read(Tasks).where`parsed != TRUE`;
+    if (tasks.length === 0) {
+      LOG.info("No task restored");
+    } else {
+      LOG.info("Found tasks records: ", tasks.length);
+    }
+    // if no tasks data from db, init task data into db.
   }
 
   async function dispatching(): Promise<void> {
-    LOG.info("Dispatching");
-    setTimeout(() => {}, 200);
+    LOG.info("Doing dispatching");
     // check task queue status
-    let taskQueue = await SELECT.one
+    // if task queue not empty, pulling one task from queue for loading and parsing
+    // if task queue is empty, trigger queue empty for set status to idle
+    let taskQueueForCount = await SELECT.one
       .from("sap.logm.db.Tasks")
-      .columns("count(*)").where`parsed != TRUE`.orderBy`taskNo, taskNo desc`;
-    if (taskQueue.count > 0) {
+      .columns("count(*)").where`parsed != TRUE`;
+    if (taskQueueForCount.count > 0) {
+      LOG.info("Found and picking up queuing task");
       let task = await SELECT.one.from("sap.logm.db.Tasks")
         .where`parsed != TRUE`.orderBy`taskNo, taskNo desc`.limit(1);
       if (task) {
+        LOG.info("Peek task found, taskNo:", task.taskNo);
         setRuntimeParam("peekTask", task);
         loading();
       }
     } else {
-      onQueueEmpty();
+      srv.emit("QueueEmpty");
     }
-    // if task queue not empty, pulling one task from queue for loading and parsing
-    // if task queue is empty, trigger queue empty for set status to idle
   }
 
   async function loading(): Promise<void> {
-    LOG.info("Loading");
+    LOG.info("Doing loading");
     await loadChunkData();
     onLoadComplete();
   }
 
-  async function onInitComplete(): Promise<void> {
-    LOG.info("onInitComplete");
-    await cds.update(Timers).where({
-      instanceId: getInstanceId()
-    }).set`status = 'Dispatching'`;
-    LOG.info("Status set to Dispatching");
+  async function handleInitComplete(): Promise<void> {
+    LOG.info("On InitComplete");
+    setTimerStatus("Dispatching");
+
     await dispatching();
   }
 
-  async function onQueueEmpty(): Promise<void> {
-    LOG.info("onQueueEmpty");
-    await cds.update(Timers).where({
-      instanceId: getInstanceId()
-    }).set`status = 'Idle'`;
-    LOG.info("Status set to Idle");
+  async function handleQueueEmpty(): Promise<void> {
+    LOG.info("On QueueEmpty");
+    setTimerStatus("Idle");
+    // start heart beat
+    LOG.info("Resume heart beat");
     let timeoutId = setTimeout(
       onTechnicalTimeout,
       Number(getGlobalSetting("heartBeatIntervalMillionSeconds"))
@@ -184,23 +193,19 @@ export = async (srv: Service) => {
     LOG.info("onStopAction");
   }
 
-  async function onTaskArrival(): Promise<void> {
-    LOG.info("onTaskArrival");
+  async function handleTaskArrival(): Promise<void> {
+    LOG.info("handleTaskArrival");
     // get timer by app ID, get status, check status if busy
     // if from idle to busy, set status to busy, pulling one task from queue, stop heart beat
-    let timerForStatus = await cds.read(Timers).where({
-      instanceId: getInstanceId()
-    });
-    if (timerForStatus[0].status === "Idle") {
+    let timerForStatus = await getCurrentTimer();
+    if (timerForStatus && timerForStatus.status === "Idle") {
       // stop heart beat
       let timeoutId: NodeJS.Timeout = getRuntimeParam(
         "timeoutId"
       ) as NodeJS.Timeout;
+      LOG.debug("Pause heart beat");
       clearTimeout(timeoutId);
-      await cds.update(Timers).where({
-        instanceId: getInstanceId()
-      }).set`status = 'Busy'`;
-      LOG.info("Status set to Busy");
+      setTimerStatus("Busy");
       let task = await SELECT.one.from("sap.logm.db.Tasks")
         .where`parsed != TRUE`.orderBy`taskNo, taskNo desc`.limit(1);
       if (task) {
@@ -210,7 +215,10 @@ export = async (srv: Service) => {
     }
     // if already busy, do nothing, log message: already busy.
     else {
-      LOG.info("Already busy - ", timerForStatus);
+      LOG.info(
+        "Do nothing, already busy. current status",
+        timerForStatus.status
+      );
     }
   }
 
@@ -248,10 +256,7 @@ export = async (srv: Service) => {
   async function onLoadComplete(): Promise<void> {
     LOG.info("onLoadComplete");
     // set to Busy
-    await cds.update(Timers).where({
-      instanceId: getInstanceId()
-    }).set`status = 'Busy'`;
-    LOG.info("Status set to Busy");
+    setTimerStatus("Busy");
     parseChunk();
   }
 
@@ -319,14 +324,12 @@ export = async (srv: Service) => {
   }
 
   /***
-   * Create task header
-   * Create each chunks data - time consumping
+   * Create task header and create each chunks data - time consumping
    */
   async function createTasksWithChunkData(tasks: Array<TaskWithChunkData>) {
     // get last task number
-    let countResut = await SELECT.from("sap.logm.db.Tasks").columns("count(*)");
-    LOG.debug("Last count: ", countResut);
-    let lastCount = countResut[0].count;
+    let lastCount = await generateTaskNo();
+    LOG.debug("Last count: ", lastCount);
     for (let i = 0; i < tasks.length; i++) {
       const task = tasks[i];
       task.taskNo = lastCount + i;
@@ -334,6 +337,7 @@ export = async (srv: Service) => {
 
     // create tasks
     await INSERT.into("sap.logm.db.Tasks").entries(tasks);
+    LOG.debug("Created tasks headers, count: ", tasks.length);
 
     // create chunks data
     for (let i = 0; i < tasks.length; i++) {
@@ -352,6 +356,7 @@ export = async (srv: Service) => {
         fileChunkData_ID: task.ID, //>  simple value
         fileChunkDataLength: chunkData.length //>  qbe expression
       }).where`ID=${task.ID}`;
+      LOG.debug("Created tasks chunk data, len: ", chunkData.length);
     }
     LOG.debug("Created tasks: ", tasks.length);
   }
@@ -359,17 +364,10 @@ export = async (srv: Service) => {
   async function createTimer() {
     // get
     let instanceIndex: string = process.env.CF_INSTANCE_INDEX || "0";
-    await INSERT.into("sap.logm.db.Timers").entries({
+    srv.insert(Timers).entries({
       instanceId: instanceIndex,
       status: "Initializing"
     });
-  }
-
-  async function readStatus(): Promise<String> {
-    let timerForStatus = await cds
-      .read(Timers, getInstanceId())
-      .columns("status");
-    return timerForStatus.status;
   }
 
   //
@@ -377,16 +375,11 @@ export = async (srv: Service) => {
   //
 
   // init global members
-  initMemebers(globalMembers);
+  preInit(globalMembers);
 
   srv.before("CREATE", Tasks, (req) => {
     LOG.info("Before CREATE Tasks - ", req.event, req.entity, req.query);
   });
-
-  // srv.on("READ", Timers, (req) => {
-  //   LOG.info("Get timers - ", req.event);
-  //   return globalMembers.get("timers");
-  // });
 
   srv.on("start", Timers, (req) => {
     LOG.info("start timer");
@@ -397,7 +390,7 @@ export = async (srv: Service) => {
   });
 
   srv.on("getStatus", Timers, async (req) => {
-    LOG.info("get timer Status - ", req.query);
+    LOG.info("Get timer status. req.query:", req.query);
     let timer = await cds.run(req.query);
     return timer[0].status;
   });
@@ -446,17 +439,12 @@ export = async (srv: Service) => {
         chunkData: chunkData
       };
       tasks.push(task);
-      // test code for consume CRUD generic handler directly instead of execute SQL
-      // await srv.send("POST", "/Tasks", task);
-      // await srv.emit("CREATE", task);
     }
     LOG.debug("Found chunks:", tasks.length);
     await createTasksWithChunkData(tasks);
+
     // persist into db
-    // test code for consume CRUD generic handler directly instead of execute SQL
-    // await srv.send("POST", "/Tasks", tasks);
-    // await srv.emit("CREATE", tasks);
-    onTaskArrival();
+    srv.emit("TaskArrival");
   });
 
   srv.on("readStatus", async (req) => {
@@ -471,7 +459,13 @@ export = async (srv: Service) => {
     LOG.info("deleteConsumedLogModelData");
   });
 
+  srv.on("InitComplete", handleInitComplete);
+
+  srv.on("QueueEmpty", handleQueueEmpty);
+
+  srv.on("TaskArrival", handleTaskArrival);
+
   // post init logic
   postInit();
-  onInitComplete();
+  srv.emit("InitComplete");
 };

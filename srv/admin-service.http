@@ -1,0 +1,54 @@
+### 
+GET  http://localhost:4004/odata/v4/admin/getProcessEnv() HTTP/1.1
+
+### 
+GET  http://localhost:4004/odata/v4/admin/getCfAppInstanceIndex() HTTP/1.1
+
+### 
+GET  http://localhost:4004/odata/v4/admin/getCdsService() HTTP/1.1
+
+### 
+GET  http://localhost:4004/odata/v4/admin/getCdsEnvKeys() HTTP/1.1
+
+#    "_context",
+#     "_home",
+#     "_sources",
+#     "_profiles",
+#     "production",
+#     "cov2ap",
+#     "requires",
+#     "server",
+#     "schemas",
+#     "features",
+#     "fiori",
+#     "ql",
+#     "log",
+#     "folders",
+#     "i18n",
+#     "odata",
+#     "sql",
+#     "hana",
+#     "build",
+#     "mtx",
+#     "cdsc",
+#     "query",
+#     "plugins",
+#     "typescript",
+#     "env",
+#     "config",
+#     "livereload",
+#     "protocols",
+#     "roots",
+#     "effective"
+
+### 
+GET  http://localhost:4004/odata/v4/admin/getCdsEnv(path='_context') HTTP/1.1
+
+### 
+GET  http://localhost:4004/odata/v4/admin/getCdsEnv(path='_home') HTTP/1.1
+
+### 
+GET  http://localhost:4004/odata/v4/admin/getCdsEnv(path='env') HTTP/1.1
+
+### 
+GET  http://localhost:4004/odata/v4/admin/getCdsModels() HTTP/1.1
